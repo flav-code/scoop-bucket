@@ -1,0 +1,74 @@
+# Follows Asterism's releases (GitHub publishes each file's SHA-256, so nothing is downloaded to update the
+# manifest), then checks on Windows that the app installs and starts.
+# shortcut: a schedule, since a push from the asterism repo would need a token there; GitHub pauses schedules in a
+# repo with no commit for 60 days, so after a long pause between releases, re-enable it in the Actions tab.
+name: Update
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.bump.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: bump
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rel=$(gh api repos/flav-code/asterism/releases/latest)
+          v=$(jq -r .tag_name <<<"$rel" | sed 's/^v//')
+          hash=$(jq -r '.assets[] | select(.name | endswith("-windows-x64-setup.exe")) | .digest // empty' <<<"$rel" | sed 's/^sha256://')
+          if [ -z "$hash" ]; then echo "$v has no Windows installer"; exit 0; fi
+          url="https://github.com/flav-code/asterism/releases/download/v$v/Asterism-$v-windows-x64-setup.exe#/dl.7z"
+          jq --arg v "$v" --arg url "$url" --arg hash "$hash" \
+            '.version = $v | .architecture."64bit" = {url: $url, hash: $hash}' bucket/asterism.json > m
+          mv m bucket/asterism.json
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "asterism $v" && git push
+          echo changed=true >> "$GITHUB_OUTPUT"
+
+  install:
+    needs: update
+    if: ${{ !cancelled() && !failure() && (github.event_name != 'schedule' || needs.update.outputs.changed == 'true') }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Scoop
+        run: |
+          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+          Join-Path (Resolve-Path ~).Path "scoop\shims" >> $env:GITHUB_PATH
+      - run: scoop install .\bucket\asterism.json
+      - name: Asterism starts and stays up
+        run: |
+          $dir = "$env:USERPROFILE\scoop\apps\asterism\current"
+          Get-ChildItem $dir
+          if (Test-Path "$dir\uninstall.exe") { throw "uninstall.exe is there: the app would update itself behind Scoop" }
+          $p = Start-Process "$dir\asterism.exe" -PassThru
+          Start-Sleep 20
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $img = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($img).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $img.Save("$PWD\windows.png")
+          if ($p.HasExited) { throw "Asterism quit with code $($p.ExitCode)" }
+          Stop-Process $p
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-screenshot
+          path: windows.png
