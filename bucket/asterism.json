@@ -1,13 +1,13 @@
 {
   "##": "Scoop unpacks the installer instead of running it. Without uninstall.exe the app leaves its updates to Scoop.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "See every AI coding agent session on your machine at once",
   "homepage": "https://github.com/flav-code/asterism",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/flav-code/asterism/releases/download/v0.1.8/Asterism-0.1.8-windows-x64-setup.exe#/dl.7z",
-      "hash": "e30799636ac691508da4fc86645e94ee6c9fc92370ae8298d91cf27ca2f6a7fe"
+      "url": "https://github.com/flav-code/asterism/releases/download/v0.1.9/Asterism-0.1.9-windows-x64-setup.exe#/dl.7z",
+      "hash": "c3d89d4b6ff5a0605409c453503605af847855fe0d1c7bb757bd6b152ce18164"
     }
   },
   "pre_install": "Remove-Item \"$dir\\`$PLUGINSDIR\", \"$dir\\[NSIS].nsi\", \"$dir\\uninstall.exe\" -Recurse -Force -ErrorAction SilentlyContinue",
