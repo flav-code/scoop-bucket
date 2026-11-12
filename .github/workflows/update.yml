@@ -21,7 +21,7 @@ jobs:
     outputs:
       changed: ${{ steps.bump.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: bump
         env:
           GH_TOKEN: ${{ github.token }}
@@ -45,7 +45,7 @@ jobs:
     if: ${{ !cancelled() && !failure() && (github.event_name != 'schedule' || needs.update.outputs.changed == 'true') }}
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
       - name: Scoop
@@ -67,7 +67,7 @@ jobs:
           $img.Save("$PWD\windows.png")
           if ($p.HasExited) { throw "Asterism quit with code $($p.ExitCode)" }
           Stop-Process $p
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: windows-screenshot
